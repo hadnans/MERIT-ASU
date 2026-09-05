@@ -45,6 +45,9 @@ end
 
 % ---------------------------
 % Compute propagation delays
+% PHYSICAL CONCEPT: Electromagnetic waves travel at the speed of light in vacuum (c0),
+% but this speed is reduced when traveling through a dielectric medium (like breast tissue
+% or matching liquid) characterized by its relative permittivity (eps_r).
 c0 = 299792458;
 speed = c0 / sqrt(eps_r);
 tx_idx = channel_names(:,1);
@@ -52,23 +55,38 @@ rx_idx = channel_names(:,2);
 tx_pos = sensors_loc(tx_idx,:);
 rx_pos = sensors_loc(rx_idx,:);
 
+% PERFORMANCE ENHANCEMENT: pdist2 can be very memory intensive for large grid_pts.
+% Consider batching the grid points if you encounter Out Of Memory (OOM) errors.
 dist_tx = pdist2(tx_pos, grid_pts);
 dist_rx = pdist2(rx_pos, grid_pts);
 % Negative for back-propagation
+% PHYSICAL CONCEPT: Delay is computed as distance/speed. We use negative delays
+% to synthetically back-propagate the received signals to the hypothetical scatterer location.
 delays = -extra_delay - (dist_tx + dist_rx) / speed;
 
 % ---------------------------
 % Main loop over pixels
+% PERFORMANCE ENHANCEMENT: Since the computation for each spatial point (pixel/voxel)
+% is independent, this loop is highly suitable for parallelization.
+% Change 'for pnt = 1:Np' to 'parfor pnt = 1:Np' to utilize multi-core processing.
 for pnt = 1:Np
+    % Phase adjustment to align signals originating from the current focal point (pnt)
     phase = exp(1j * two_pi_f * delays(:,pnt).');
-    sig = sum(data .* phase, 1); 
+    % Coherently sum across all frequencies for the aligned signals
+    sig = sum(data .* phase, 1);
 
     switch method
         case 'DAS'
             % --- Delay and Sum ---
+            % PHYSICAL CONCEPT: Simplest beamformer. Assumes isotropic scattering.
+            % Signals sum constructively if a scatterer is present.
             s = sum(sig);
         case 'DMAS'
             % --- Delay Multiply and Sum ---
+            % PHYSICAL CONCEPT: Multiplies aligned signals pairwise to enhance correlation
+            % (coherence) between channels, which effectively suppresses uncorrelated noise/clutter.
+            % PERFORMANCE ENHANCEMENT: Nested loops are slow in MATLAB. This can be completely
+            % vectorized using: s = 0.5 * (sum(sig)^2 - sum(sig.^2)); or by matrix operations.
             s = 0;
             for i = 1:Nc-1
                 for j = i+1:Nc
@@ -83,35 +101,46 @@ for pnt = 1:Np
             s = cf * sum(sig);
         case 'MVDR'
             % --- Minimum Variance Distortionless Response ---
+            % PHYSICAL CONCEPT: An adaptive beamformer that minimizes total output power
+            % (noise + clutter) while maintaining a distortionless response (gain = 1)
+            % in the look direction (the current focal point).
             R = (sig.' * conj(sig)) / Nc + 1e-6 * eye(Nc);
-            a = ones(Nc,1);
+            a = ones(Nc,1); % Steering vector (ones because we already applied delays)
             w = (R \ a) / (a' * (R \ a));
             s = w' * sig.';
         case 'CAPON'
             % --- Capon (MVDR Spectral) ---
+            % PERFORMANCE ENHANCEMENT: R \ a is computed twice in MVDR and Capon.
+            % It can be stored in a temporary variable to avoid redundant matrix inversions.
             R = (sig.' * conj(sig)) / Nc + 1e-6 * eye(Nc);
             a = ones(Nc,1);
-            s = 1 / real(a' * (R \ a)); 
+            s = 1 / real(a' * (R \ a));
         case 'MUSIC'
             % --- MUSIC Algorithm ---
+            % PHYSICAL CONCEPT: A high-resolution subspace method. Decomposes the spatial
+            % covariance matrix into signal and noise subspaces. The spectrum peaks where
+            % the steering vector is orthogonal to the noise subspace.
+
             % 1. Covariance Matrix
             R = (sig.' * conj(sig)) / Nc;
-            
+
             % 2. Eigendecomposition
+            % PERFORMANCE ENHANCEMENT: For large Nc, full eigendecomposition (eig) is costly.
+            % Consider using svd() or eigs() if you only need a few principal components.
             [V, D] = eig(R);
             eigenvals = diag(D);
             [eigenvals, idx] = sort(eigenvals, 'descend');
             V = V(:, idx);
-            
-            % 3. Determine Noise Subspace    
+
+            % 3. Determine Noise Subspace
             En = V(:, 2:end);
-        
-            
+
+
             % 4. MUSIC Spectrum
-            % Note: Steering vector 'a' is effectively ones(Nc,1) 
+            % Note: Steering vector 'a' is effectively ones(Nc,1)
             % because 'sig' is already phase-aligned (focused).
             a = ones(Nc, 1);
-            denom = norm(En' * a)^2; % identical to a' * En * En' * a 
+            denom = norm(En' * a)^2; % identical to a' * En * En' * a
             s = 1 / (denom + 1e-12);
     end
     image_vec(pnt) = abs(s)^powerExp;
