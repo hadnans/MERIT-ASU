@@ -86,8 +86,8 @@ parfor pnt = 1:Np
             % PHYSICAL CONCEPT: Multiplies aligned signals pairwise to enhance correlation
             % (coherence) between channels, which effectively suppresses uncorrelated noise/clutter.
             % PERFORMANCE ENHANCEMENT: Nested loops are slow in MATLAB. This can be completely
-            % vectorized using: s = 0.5 * (sum(sig)^2 - sum(sig.^2)); or by matrix operations.
-            s = 0.5 * (sum(sig)^2 - sum(sig.^2));
+            % vectorized using: s = 0.5 * (abs(sum(sig))^2 - sum(abs(sig).^2));
+            s = 0.5 * (abs(sum(sig))^2 - sum(abs(sig).^2));
         case 'CF'
             % --- Coherence Factor ---
             coherent = abs(sum(sig));
