@@ -69,7 +69,7 @@ delays = -extra_delay - (dist_tx + dist_rx) / speed;
 % PERFORMANCE ENHANCEMENT: Since the computation for each spatial point (pixel/voxel)
 % is independent, this loop is highly suitable for parallelization.
 % Change 'for pnt = 1:Np' to 'parfor pnt = 1:Np' to utilize multi-core processing.
-for pnt = 1:Np
+parfor pnt = 1:Np
     % Phase adjustment to align signals originating from the current focal point (pnt)
     phase = exp(1j * two_pi_f * delays(:,pnt).');
     % Coherently sum across all frequencies for the aligned signals
@@ -87,12 +87,7 @@ for pnt = 1:Np
             % (coherence) between channels, which effectively suppresses uncorrelated noise/clutter.
             % PERFORMANCE ENHANCEMENT: Nested loops are slow in MATLAB. This can be completely
             % vectorized using: s = 0.5 * (sum(sig)^2 - sum(sig.^2)); or by matrix operations.
-            s = 0;
-            for i = 1:Nc-1
-                for j = i+1:Nc
-                    s = s + sig(i) * conj(sig(j));
-                end
-            end
+            s = 0.5 * (sum(sig)^2 - sum(sig.^2));
         case 'CF'
             % --- Coherence Factor ---
             coherent = abs(sum(sig));
@@ -106,7 +101,8 @@ for pnt = 1:Np
             % in the look direction (the current focal point).
             R = (sig.' * conj(sig)) / Nc + 1e-6 * eye(Nc);
             a = ones(Nc,1); % Steering vector (ones because we already applied delays)
-            w = (R \ a) / (a' * (R \ a));
+            R_inv_a = R \ a;
+            w = R_inv_a / (a' * R_inv_a);
             s = w' * sig.';
         case 'CAPON'
             % --- Capon (MVDR Spectral) ---
@@ -114,7 +110,8 @@ for pnt = 1:Np
             % It can be stored in a temporary variable to avoid redundant matrix inversions.
             R = (sig.' * conj(sig)) / Nc + 1e-6 * eye(Nc);
             a = ones(Nc,1);
-            s = 1 / real(a' * (R \ a));
+            R_inv_a = R \ a;
+            s = 1 / real(a' * R_inv_a);
         case 'MUSIC'
             % --- MUSIC Algorithm ---
             % PHYSICAL CONCEPT: A high-resolution subspace method. Decomposes the spatial
