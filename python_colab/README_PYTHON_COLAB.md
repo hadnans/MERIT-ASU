@@ -30,7 +30,13 @@ The required files are:
 4. `channel_names.csv`: Two columns (Tx and Rx antenna indices).
 5. `antenna_locations.csv`: Three columns (X, Y, Z physical coordinates in mm).
 
-*Ensure that your S-Parameter CSV files are loaded correctly as complex numbers or float values, depending on your VNA's export settings.*
+*The robust Python data loader uses Pandas and automatically handles HFSS CSV exports containing header text rows and complex number strings (e.g., `1.5+2.3i` or `1.5+2.3j`). It will parse them into proper NumPy complex matrices.*
+
+## Performance Optimizations
+This Python port contains deep mathematical optimizations out of the box:
+- Vectorized array operations with `numpy` to remove nested `for` loops.
+- `np.linalg.eigh` applied for MUSIC algorithm eigendecompositions, exploiting Hermitian matrix properties for maximum stability and speed.
+- Optimized `DMAS` vectorization calculation for massive speedups in highly dense spatial grids.
 
 ## Running the Code
 

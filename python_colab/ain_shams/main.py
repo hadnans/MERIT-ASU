@@ -37,8 +37,11 @@ conf_pol = 12
 channels_mode = 3
 scale_factor = -40
 
+# Robust dynamic path resolution so this script works regardless of where it's executed from
+data_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+
 # Load data
-scan2, scan1, freqs, sensors_loc, ch_names = load_data_asu(data, conf_pol, channels_mode, data_dir='data')
+scan2, scan1, freqs, sensors_loc, ch_names = load_data_asu(data, conf_pol, channels_mode, data_dir=data_directory)
 scan2 = md.scale_reflections(scan2, ch_names, scale_factor)
 scan1 = md.scale_reflections(scan1, ch_names, scale_factor)
 

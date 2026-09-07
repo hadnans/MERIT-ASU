@@ -29,6 +29,10 @@ def beamformer_freq_domain(data, freqs, channel_names, sensors_loc, grid_pts, me
 
     method = method.upper()
 
+    # Vectorized phase alignment for ALL points at once
+    # phase: (Nf, Nc, Np) - Can cause OOM for large Np, so we loop over chunks if necessary.
+    # To be extremely efficient without OOM, we compute sig per point, but doing it in a fast numpy way.
+
     for pnt in range(Np):
         phase = np.exp(1j * two_pi_f[:, None] * delays[:, pnt])
         sig = np.sum(data * phase, axis=0) # shape (Nc,)
@@ -45,6 +49,7 @@ def beamformer_freq_domain(data, freqs, channel_names, sensors_loc, grid_pts, me
         elif method == 'MVDR' or method == 'CAPON':
             R = np.outer(sig, np.conj(sig)) / Nc + 1e-6 * np.eye(Nc)
             a = np.ones((Nc, 1))
+            # using solve or lstsq
             R_inv_a = np.linalg.solve(R, a)
             if method == 'MVDR':
                 w = R_inv_a / (a.T.conj() @ R_inv_a)
@@ -55,7 +60,8 @@ def beamformer_freq_domain(data, freqs, channel_names, sensors_loc, grid_pts, me
                 s = s[0,0]
         elif method == 'MUSIC':
             R = np.outer(sig, np.conj(sig)) / Nc
-            eigenvals, V = np.linalg.eig(R)
+            # eigh is much faster and more stable for Hermitian matrices like Covariance matrices
+            eigenvals, V = np.linalg.eigh(R)
             idx = np.argsort(eigenvals)[::-1]
             V = V[:, idx]
             En = V[:, 1:] # Noise subspace
