@@ -2,9 +2,19 @@ clc, clearvars, close all
 %--------------------------------
 % Data Options
 % -------------------------------
-data = 0;
+data = 0;               % 0: sim, 1: measured, 2: all, 3: custom directory
 conf_pol= 12;
 channels_mode = 3;
+
+% If data == 3, the code looks for 5 specific CSV files in this directory:
+% 1) scan1.csv 2) scan2.csv 3) frequencies.csv 4) channel_names.csv 5) antenna_locations.csv
+data_dir = 'ain_shams/data/my_custom_dataset';
+
+if data == 3 && (isempty(data_dir) || ~exist(data_dir, 'dir'))
+    % If the directory doesn't exist, open a UI dialog for the user to pick it
+    disp('Custom data directory not found or empty. Please select the folder containing the 5 CSV files.');
+    data_dir = uigetdir(pwd, 'Select Folder Containing Data CSV Files');
+end
 
 % -------------------------------
 % Imaging Domain Parameters
@@ -55,7 +65,11 @@ f_start = 1e9;
 f_end   = 4e9;
 freq_step = 1;
 
-[scan2, scan1, frequencies, sensors_locations, channel_names] = load_data_asu(data, conf_pol, channels_mode);
+if data == 3
+    [scan2, scan1, frequencies, sensors_locations, channel_names] = load_data_asu(data, conf_pol, channels_mode, data_dir);
+else
+    [scan2, scan1, frequencies, sensors_locations, channel_names] = load_data_asu(data, conf_pol, channels_mode);
+end
 scan2 = mimt.manage_data.scale_reflections(scan2, channel_names, scale_factor);
 scan1 = mimt.manage_data.scale_reflections(scan1, channel_names, scale_factor);
 params.scan2                    = scan2;

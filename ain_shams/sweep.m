@@ -1,11 +1,21 @@
 clc, clearvars, close all
 
 %--------------------------------
-% Data Options 
+% Data Options
 % -------------------------------
-data = 0;
+data = 0;               % 0: sim, 1: measured, 2: all, 3: custom directory
 conf_pol= 22;
 channels_mode = 3;
+
+% If data == 3, the code looks for 5 specific CSV files in this directory:
+% 1) scan1.csv 2) scan2.csv 3) frequencies.csv 4) channel_names.csv 5) antenna_locations.csv
+data_dir = 'ain_shams/data/my_custom_dataset';
+
+if data == 3 && (isempty(data_dir) || ~exist(data_dir, 'dir'))
+    % If the directory doesn't exist, open a UI dialog for the user to pick it
+    disp('Custom data directory not found or empty. Please select the folder containing the 5 CSV files.');
+    data_dir = uigetdir(pwd, 'Select Folder Containing Data CSV Files');
+end
 
 % -------------------------------
 % Imaging Domain Parameters
@@ -20,11 +30,11 @@ scale_factor = -40;
 % -------------------------------
 % Processing Options (0 | 1)
 % -------------------------------
-background_subtraction = 1; 
-rotated_subtraction    = 0; 
-time_domain_processing = 0; 
-time_gating_cr         = 0; 
-av_sub_cr              = 1; 
+background_subtraction = 1;
+rotated_subtraction    = 0;
+time_domain_processing = 0;
+time_gating_cr         = 0;
+av_sub_cr              = 1;
 filter_cr              = 0;
 svd_cr                 = 0;
 estimated_delay        = 1;
@@ -56,7 +66,7 @@ tumor_x_min = 10;   % adjust as needed
 tumor_y_min = 10;
 % -------------------------------
 params.ROI                      = ROI;
-params.slice                    = slice;   
+params.slice                    = slice;
 params.resolution               = resolution;
 params.thresholding_diff        = thresholding_diff;
 params.background_subtraction   = background_subtraction;
@@ -84,13 +94,18 @@ for relative_permittivity = relative_permittivity_list
                     fprintf('Iteration %d out of %d\n', iteration, ...
                             length(f_start_list) * length(f_end_list) * ...
                             length(freq_step_list) * length(threshold_list) * length(relative_permittivity_list));
-                    iteration = iteration + 1;          
+                    iteration = iteration + 1;
                     if f_end <= f_start
                         continue; % skip invalid ranges
                     end
-                   
-                    [scan2, scan1, frequencies, sensors_locations, channel_names] =  ...
-                                load_data_asu(data, conf_pol, channels_mode);
+
+                    if data == 3
+                        [scan2, scan1, frequencies, sensors_locations, channel_names] =  ...
+                                    load_data_asu(data, conf_pol, channels_mode, data_dir);
+                    else
+                        [scan2, scan1, frequencies, sensors_locations, channel_names] =  ...
+                                    load_data_asu(data, conf_pol, channels_mode);
+                    end
                     scan2 = mimt.manage_data.scale_reflections(scan2, channel_names, scale_factor);
                     scan1 = mimt.manage_data.scale_reflections(scan1, channel_names, scale_factor);
                     try
@@ -104,23 +119,23 @@ for relative_permittivity = relative_permittivity_list
                         params.f_end                 = f_end;
                         params.freq_step             = freq_step;
                         params.signal_threshold      = signal_threshold;
-                        [img, tumor_x, tumor_y]      = mimt.process.compute_beamform(params);     
+                        [img, tumor_x, tumor_y]      = mimt.process.compute_beamform(params);
                     catch exception
                         continue;
                     end
-                    
+
                     % Check condition and save results
                     % if (tumor_x > tumor_x_min) && (tumor_y > tumor_y_min)
-                    
+
                         fname = sprintf('./ain_shams/results/sweep/cc/wr_112025/Result_er_%.1f_f%.2f-%.2fGHz_step%d_thr%+d_x%.3f_y%.3f', ...
                                         relative_permittivity, f_start/1e9, f_end/1e9, freq_step, signal_threshold, ...
                                         tumor_x, tumor_y);
-                        
+
                         % Save figure
                         saveas(gcf, [fname '.png']);
-                    % end  
-                    
-                    close all % close figures before next iteration      
+                    % end
+
+                    close all % close figures before next iteration
                 end
             end
         end

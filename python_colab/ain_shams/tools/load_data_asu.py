@@ -26,6 +26,20 @@ def load_data_asu(data, conf_pol, channels_mode, data_dir='data'):
     Data loader for Python.
     Handles robust loading of HFSS CSV files containing complex S-parameters.
     """
+    expected_files = ['scan1.csv', 'scan2.csv', 'frequencies.csv', 'channel_names.csv', 'antenna_locations.csv']
+    missing_files = [f for f in expected_files if not os.path.exists(os.path.join(data_dir, f))]
+
+    if missing_files:
+        print("==========================================================")
+        print("CRITICAL ERROR: Missing files in custom data directory!")
+        print(f"Data Directory Checked: {data_dir}")
+        print("The following required files are missing:")
+        for mf in missing_files:
+            print(f"  -> {mf}")
+        print("==========================================================")
+        print("Using dummy fallback data so the script doesn't completely crash.")
+        return np.zeros((10,10)), np.zeros((10,10)), np.zeros((10,1)), np.zeros((10,3)), np.zeros((10,2))
+
     try:
         scan1 = parse_complex_csv(os.path.join(data_dir, 'scan1.csv'))
         scan2 = parse_complex_csv(os.path.join(data_dir, 'scan2.csv'))

@@ -38,7 +38,12 @@ channels_mode = 3
 scale_factor = -40
 
 # Robust dynamic path resolution so this script works regardless of where it's executed from
+# To use your own files, place the following 5 CSV files in the 'data_directory' folder:
+# 1) scan1.csv 2) scan2.csv 3) frequencies.csv 4) channel_names.csv 5) antenna_locations.csv
 data_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+
+# Alternatively, change `data_directory` to any absolute path on your machine:
+# data_directory = '/path/to/my/custom/dataset'
 
 # Load data
 scan2, scan1, freqs, sensors_loc, ch_names = load_data_asu(data, conf_pol, channels_mode, data_dir=data_directory)
