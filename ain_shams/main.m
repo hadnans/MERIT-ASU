@@ -1,4 +1,16 @@
 clc, clearvars, close all
+
+% -------------------------------
+% Add Paths
+% -------------------------------
+% Ensure the current script's directory and the repository root are in the MATLAB path
+% so that the 'tools' folder and the '+merit' / '+mimt' packages are visible.
+script_dir = fileparts(mfilename('fullpath'));
+addpath(fullfile(script_dir, 'tools'));
+addpath(fullfile(script_dir, 'tools', 'stand_alone_files'));
+% The root directory (one level up from ain_shams) contains +mimt and +merit
+addpath(fullfile(script_dir, '..'));
+
 %--------------------------------
 % Data Options
 % -------------------------------
