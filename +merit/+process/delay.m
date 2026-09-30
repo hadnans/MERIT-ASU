@@ -51,15 +51,15 @@ function [signals_] = delay(signals, delays, axis_, padding)
 
   function [signals_] = delay_sample(signals, delays)
     signals_ = padding(size(signals), 'like', signals);
-    signals_(:, delays==0) = signals(:, delays==0);
-
-    for d = unique(delays(:))'
-      cs = delays == d;
-      if d > 0
-        signals_(d+1:end, cs) = signals(1:end-d, cs);
-      else
-        signals_(1:end+d,cs) = signals(1-d:end, cs);
-      end
+    T = size(signals, 1);
+    N = size(signals, 2);
+    delays = delays(:)';
+    S = (1:T)' - delays;
+    valid = S >= 1 & S <= T;
+    if any(valid, 'all')
+      col_offsets = (0:N-1) * T;
+      src_idx = S + col_offsets;
+      signals_(valid) = signals(src_idx(valid));
     end
   end
 end
